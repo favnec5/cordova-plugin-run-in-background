@@ -27,14 +27,13 @@ import android.app.*;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
-import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import org.json.JSONObject;
-import android.support.v4.app.NotificationCompat;
+import androidx.core.app.NotificationCompat;
 
 import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
 
@@ -190,32 +189,33 @@ public class ForegroundService extends Service {
         String text     = settings.optString("text", NOTIFICATION_TEXT);
         boolean bigText = settings.optBoolean("bigText", false);
         String subText = settings.optString("subText", "");
-        String largeIcon = settings.optString("largeIcon", null);
+        String visibility = settings.optString("visibility", "");
 
         Context context = getApplicationContext();
         String pkgName  = context.getPackageName();
         Intent intent   = context.getPackageManager()
                 .getLaunchIntentForPackage(pkgName);
 
+        int smallIcon = getIconResId(settings);
+        if (smallIcon == 0) { //If no icon at all was found, fall back to the app's icon
+            smallIcon = context.getApplicationInfo().icon;
+        }
+
         NotificationCompat.Builder notification = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setOngoing(true)
-                .setSmallIcon(getIconResId(settings))
+                .setSmallIcon(smallIcon)
                 .setShowWhen(settings.optBoolean("showWhen", true));
 
         if (!subText.equals("")) {
             notification.setSubText(subText);
         }
 
-        if (largeIcon != null) {
-            notification.setLargeIcon(BitmapFactory.decodeResource(getResources(), getIconResId(largeIcon)));
-        }
-
         if (settings.optBoolean("allowClose", false)) {
 
             final Intent clostAppIntent = new Intent("com.backgroundmode.close" + pkgName);
-            final PendingIntent closeIntent = PendingIntent.getBroadcast(context, 1337, clostAppIntent, 0);
+            final PendingIntent closeIntent = PendingIntent.getBroadcast(context, 1337, clostAppIntent, PendingIntent.FLAG_IMMUTABLE);
             final String closeIconName = settings.optString("closeIcon", "power");
             NotificationCompat.Action.Builder closeAction = new NotificationCompat.Action.Builder(getIconResId(closeIconName), settings.optString("closeTitle", "Close"), closeIntent);
             notification.addAction(closeAction.build());
@@ -230,13 +230,17 @@ public class ForegroundService extends Service {
                     new NotificationCompat.BigTextStyle().bigText(text));
         }
 
+        if (!visibility.equals("")) {
+            notification.setVisibility(getVisibility(visibility));
+        }
+
         setColor(notification, settings);
 
         if (intent != null && settings.optBoolean("resume")) {
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             PendingIntent contentIntent = PendingIntent.getActivity(
                     context, NOTIFICATION_ID, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT);
+                    PendingIntent.FLAG_UPDATE_CURRENT & PendingIntent.FLAG_IMMUTABLE);
 
 
             notification.setContentIntent(contentIntent);
@@ -315,6 +319,23 @@ public class ForegroundService extends Service {
         return res.getIdentifier(icon, type, pkgName);
     }
 
+    /**
+     * Get the visibility constant from a string.
+     *
+     * @param visibility one of 'public', 'private', 'secret'
+     *
+     * @return The visibility constant if a match is found, 'private' otherwise
+     */
+    private int getVisibility (String visibility)
+    {
+        if (visibility.equals("public")) {
+            return Notification.VISIBILITY_PUBLIC;
+        } else if (visibility.equals("secret")) {
+            return Notification.VISIBILITY_SECRET;
+        } else {
+            return Notification.VISIBILITY_PRIVATE;
+        }
+    }
     /**
      * Set notification color if its supported by the SDK.
      *
