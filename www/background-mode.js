@@ -178,6 +178,38 @@ exports.disableBatteryOptimizations = function()
 };
 
 /**
+ * Opens the system settings screen for battery optimization, allowing the user to
+ * manually change the optimization settings.
+ *
+ * @return [ Void ]
+ */
+exports.openBatteryOptimizationsSettings = function()
+{
+    if (this._isAndroid)
+    {
+        cordova.exec(null, null, 'BackgroundModeExt', 'batterysettings', []);
+    }
+};
+
+/**
+ * Opens the system settings screen for battery optimization, allowing the user to
+ * manually change the optimization settings.
+ *
+ * @return [ Void ]
+ */
+exports.isIgnoringBatteryOptimizations = function(callback)
+{
+    if (this._isAndroid)
+    {
+        cordova.exec(callback, null, 'BackgroundModeExt', 'optimizationstatus', []);
+    }
+    else
+    {
+        callback(true);
+    }
+};
+
+/**
  * Opens the system settings dialog where the user can tweak or turn off any
  * custom app start settings added by the manufacturer if available.
  *
@@ -217,6 +249,17 @@ exports.moveToForeground = function()
     if (this.isActive() && this._isAndroid)
     {
         cordova.exec(null, null, 'BackgroundModeExt', 'foreground', []);
+    }
+};
+
+/**
+ * Requests permission to "draw on top" which is necessary for the "moveToForeground" method in Android 10+
+ *
+ * @return [ Void ]
+ */
+exports.requestForegroundPermission = function() {
+    if (this._isAndroid) {
+        cordova.exec(null, null, 'BackgroundModeExt', 'requestTopPermissions', []);
     }
 };
 
@@ -419,13 +462,13 @@ exports._defaults = {
     hidden:             true,
     color:              undefined,
     icon:               'icon',
-	largeIcon:          undefined,
     channelName:        'cordova-plugin-background-mode',
     channelDescription: 'cordova-plugin-background-moden notification',
     allowClose:         false,
     closeIcon:          'power',
     closeTitle:         'Close',
-    showWhen:           true
+    showWhen:           true,
+    visibility:         undefined
 };
 
 /**
